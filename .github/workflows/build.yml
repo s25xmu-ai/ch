@@ -38,9 +38,6 @@ jobs:
           echo "RELEASE_KEY_ALIAS=androiddebugkey" >> gradle.properties
           echo "RELEASE_KEY_PASSWORD=android" >> gradle.properties
           echo "RELEASE_STORE_PASSWORD=android" >> gradle.properties
-
-          PACKAGE="me.xgram.messenger"
-
           cat > /tmp/google-services.json << 'EOF'
           {"project_info":{"project_id":"xgram","project_number":"1","firebase_url":"https://xgram.firebaseio.com","storage_bucket":"xgram.appspot.com"},"client":[{"client_info":{"mobilesdk_app_id":"1:1:android:abc","android_client_info":{"package_name":"me.xgram.messenger"}},"api_key":[{"current_key":"test"}],"services":{"appinvite_service":{"other_platform_oauth_client":[]}}},{"client_info":{"mobilesdk_app_id":"1:1:android:def","android_client_info":{"package_name":"me.xgram.messenger.beta"}},"api_key":[{"current_key":"test"}],"services":{"appinvite_service":{"other_platform_oauth_client":[]}}}],"configuration_version":"1"}
           EOF
@@ -48,6 +45,16 @@ jobs:
           cp /tmp/google-services.json TMessagesProj_App/google-services.json 2>/dev/null || true
           cp /tmp/google-services.json TMessagesProj_AppStandalone/google-services.json 2>/dev/null || true
           cp /tmp/google-services.json TMessagesProj_AppHuawei/google-services.json 2>/dev/null || true
+
+      - name: Create secrets_for_ci.env
+        run: |
+          cat > secrets_for_ci.env << 'EOF'
+          TELEGRAM_APP_ID=33758413
+          TELEGRAM_APP_HASH=e9fe420e4e170ff123fd27c3f63c440e
+          RELEASE_KEY_ALIAS=androiddebugkey
+          RELEASE_KEY_PASSWORD=android
+          RELEASE_STORE_PASSWORD=android
+          EOF
 
       - name: Create debug keystore
         run: |
@@ -71,19 +78,15 @@ jobs:
         run: |
           python3 - << 'EOF'
           import re, glob
-
-          new_key = "24dcc04f157b9318178ca16e9a0eb9be13c77f87a14be791dbcaf4c06cf0423eeb0249a2e823c3410fffcc6f6de59870eee698884ae61c1e514733e79854d728dfccd7bf7aaec4362b30f9cc54f027c50362ad4d59e1aafd9f0b37f1a4edbccf8b3cfb3493db5c74ca9ff0c75db1713117ca29554310fe5889b0e7f1b6a208e13d86b76f6751ee6e20651a5befb613a35ab4cc1e1abbab4374846058463a61fcac6ab4fa67b548afc7af3370f1374d909e86eedd7775494621543c11ac2ad126c9a146ceeef50a314ed9063df6ef0c23a8b92b3a6201c50e744af944315c92114c1aeeed26b8770dc87df4608cd6b64281df44c4ae286722913978683c2cb973"
-          new_key_b64 = "24zgTxV7kxgXjKFumg65vhPHf4ehS+eR28r0wGzwQj7rAkmi6CPDQQzG9t5Zhw7uaYiErmHB5RRzPnmFTXKN/M1796rsQ2KzD5zFTwJ8UDYq1NWeGq/Z8LN/Gk7bzPizz7NJPbXHTKn/DHXbFxMRfKKVVDEP5YibDn8baiCOE9hrdvZ1HubiBlGlvvthOjWrTMHhq7q0N0hGBYRjph/KxqtPpntUivx68zcPE3TZCehu7dd3VJRiFUPBGsKtEmyaFGzu71CjFO2QY99u8MI6i5KzpiAcUOdEr5RDFckhFMGu7tJrh3Dch99GCM1rZCgd9ExK4oZyKROXhoPCy5cwIDAQAB"
-          new_fp = "0xd8b4747a6d74c416"
-
+          new_key = "MIIBCgKCAQEAxF//0M0+/5PzgdNagTX+J+dJgr75ZCTuiG8i4x7YwmJF+jiOGCjm7X7BLCaMc1+hOZYDL3+Gvle/AKykW1qouaCJMVx/H+2l8LFXLelZ2PLawTb8A7BlTqWzL3db5BugMNWziL9TuhR8In1bwKY07QVpR9in5zjAsAGLBk+mGt0DnVyMf1Xop2lLCFNmm0F4ykcAeaLCCIPbGWddliLY8xEEhI4GO2l1U3kZMwIOdOnAGJFtgUAoTe+FHR6F1s9adCVZB1teL/hf9R+WmekJwygVz0MYEH7y6U49T45+/W7OF6X6g0W0j1uSSrsY4qN7twxbTad9zdGZ7ys+9v+PuQIDAQAB"
+          new_fp = "0x9dbe5a4c45febeff"
           files = glob.glob("TMessagesProj/jni/tgnet/Handshake.cpp") + \
                   glob.glob("TMessagesProj/jni/tgnet/Datacenter.cpp")
-
           for f in files:
               try:
                   with open(f, 'r') as file:
                       content = file.read()
-                  new_content = re.sub(r'MIIBCgKCAQEA[A-Za-z0-9+/=]+', 'MIIBCgKCAQEA' + new_key_b64, content)
+                  new_content = re.sub(r'MIIBCgKCAQEA[A-Za-z0-9+/=]+', new_key, content)
                   new_content = re.sub(r'0x[0-9a-f]{16}', new_fp, new_content)
                   with open(f, 'w') as file:
                       file.write(new_content)
@@ -94,11 +97,8 @@ jobs:
 
       - name: Rename to XGram
         run: |
-          # اسم
           find . -name "strings.xml" | xargs sed -i 's/Cherrygram/XGram/g' 2>/dev/null || true
           find . -name "strings.xml" | xargs sed -i 's/cherrygram/xgram/g' 2>/dev/null || true
-
-          # Package name
           find . -name "*.kt" -o -name "*.java" | xargs grep -l "uz\.unnarsx\.cherrygram" 2>/dev/null | \
             xargs sed -i 's/uz\.unnarsx\.cherrygram/me.xgram.messenger/g' 2>/dev/null || true
           find . -name "*.xml" | xargs sed -i 's/uz\.unnarsx\.cherrygram/me.xgram.messenger/g' 2>/dev/null || true
@@ -106,15 +106,13 @@ jobs:
 
       - name: Fix Version
         run: |
-          sed -i 's/versionCode [0-9]*/versionCode 10/' TMessagesProj/build.gradle 2>/dev/null || true
           sed -i 's/versionName "[^"]*"/versionName "1.0.0"/' TMessagesProj/build.gradle 2>/dev/null || true
-          sed -i 's/versionCode [0-9]*/versionCode 10/' TMessagesProj_App/build.gradle 2>/dev/null || true
           sed -i 's/versionName "[^"]*"/versionName "1.0.0"/' TMessagesProj_App/build.gradle 2>/dev/null || true
 
       - name: Build APK
         run: |
           chmod +x gradlew
-          ./gradlew :TMessagesProj_App:assembleAfatDebug --no-daemon -x lint 2>&1 | tail -50
+          ./gradlew :TMessagesProj_App:assembleAfatDebug --no-daemon -x lint 2>&1 | grep -E "error:|FAILED|What went wrong" | head -20
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
